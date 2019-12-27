@@ -1,0 +1,47 @@
+resources:
+- repo: self
+  fetchDepth: 1
+trigger:
+- testing
+variables:
+  artifactName: 'Orchard.Web'
+jobs:
+- job: Build
+  displayName: Build application
+  condition: succeeded()
+  pool:
+    vmImage: vs2017-win2016
+    demands:
+    - msbuild
+    - visualstudio
+  variables:
+    solution: 'src\Orchard.sln'
+    buildPlatform: 'Any CPU'
+    buildConfiguration: 'Release'
+  steps:
+  - task: NuGetToolInstaller@0
+    displayName: 'Use NuGet 4.4.1'
+    inputs:
+      versionSpec: 4.4.1
+  - task: NuGetCommand@2
+    displayName: 'NuGet restore'
+    inputs:
+      restoreSolution: '$(solution)'
+  - task: VSBuild@1
+    displayName: 'Build solution'
+    inputs:
+      solution: '$(solution)'
+      msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="$(build.artifactstagingdirectory)\\"'
+      platform: '$(buildPlatform)'
+      configuration: '$(buildConfiguration)'
+  - task: PublishSymbols@2
+    displayName: 'Publish symbols path'
+    continueOnError: true
+    inputs:
+      SearchPattern: '**\bin\**\*.pdb'
+      PublishSymbols: false
+  - task: PublishBuildArtifacts@1
+    displayName: 'Publish Artifact'
+    inputs:
+      PathtoPublish: '$(build.artifactstagingdirectory)/Orchard.Web.zip'
+      ArtifactName: '$(artifactName)'
